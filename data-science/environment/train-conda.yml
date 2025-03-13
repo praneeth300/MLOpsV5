@@ -1,7 +1,6 @@
 channels:
-  - defaults
-  - anaconda
   - conda-forge
+  - defaults
 dependencies:
   - python=3.12
   - pip
@@ -14,5 +13,9 @@ dependencies:
       - joblib==1.0.0
       - matplotlib==3.3.3
       - azureml-inference-server-http
-      - git+https://github.com/microsoft/AzureML-Observability#subdirectory=aml-obs-client
-      - git+https://github.com/microsoft/AzureML-Observability#subdirectory=aml-obs-collector
+      - >-
+        aml-obs-client @
+        git+https://github.com/microsoft/AzureML-Observability#subdirectory=aml-obs-client
+      - >-
+        aml-obs-collector @
+        git+https://github.com/microsoft/AzureML-Observability#subdirectory=aml-obs-collector
