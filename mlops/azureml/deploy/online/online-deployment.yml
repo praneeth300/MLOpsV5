@@ -2,6 +2,8 @@ $schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.sch
 name: blue
 endpoint_name: taxi-fare-endpoint
 model: azureml:taxi-model@latest
-environment: azureml:taxi-train-env@latest
+environment: 
+  conda_file: ../../data-science/environment/deploy-conda.yml
+  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04:latest
 instance_type: Standard_F4s_v2
 instance_count: 1
