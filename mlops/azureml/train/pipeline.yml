@@ -1,26 +1,19 @@
 $schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
 type: pipeline
-experiment_name: taxi-fare-training
-description: Training Pipeline to train a model that predicts taxi fare price
+display_name: teleco_churn_training_pipeline
+experiment_name: teleco-churn-training
+description: Training Pipeline to predict churn using Decision Tree classifier
 
-# <inputs_and_outputs>
 inputs:
   input:
     type: uri_file
-    path: azureml:taxi-data@latest
-  enable_monitoring: 'false'
-  table_name: 'taximonitoring'
+    path: azureml:teleco_churn-data@latest
 
-outputs: 
+outputs:
   train_data:
-  val_data:
   test_data:
-  trained_model:
-  evaluation_output:
   model_info_output_path:
-# </inputs_and_outputs>
 
-# <jobs>
 settings:
   default_datastore: azureml:workspaceblobstore
   default_compute: azureml:cpu-cluster
@@ -35,51 +28,40 @@ jobs:
       python prep.py 
       --raw_data ${{inputs.raw_data}} 
       --train_data ${{outputs.train_data}}
-      --val_data ${{outputs.val_data}}
       --test_data ${{outputs.test_data}}
-      --enable_monitoring ${{inputs.enable_monitoring}}
-      --table_name ${{inputs.table_name}}
-    environment: azureml:taxi-train-env@latest
+    environment: azureml:teleco-churn-train-env@latest
     inputs:
       raw_data: ${{parent.inputs.input}}
-      enable_monitoring: ${{parent.inputs.enable_monitoring}}
-      table_name: ${{parent.inputs.table_name}}
     outputs:
       train_data: ${{parent.outputs.train_data}}
-      val_data: ${{parent.outputs.val_data}}
       test_data: ${{parent.outputs.test_data}}
 
-  train_model:
-    name: train_model
-    display_name: train-model
-    code: ../../../data-science/src
-    command: >-
-      python train.py 
-      --train_data ${{inputs.train_data}} 
-      --model_output ${{outputs.model_output}}
-    environment: azureml:taxi-train-env@latest
+  sweep_step:
+    name: sweep_job
+    display_name: sweep-job
+    type: sweep
     inputs:
       train_data: ${{parent.jobs.prep_data.outputs.train_data}}
-    outputs:
-      model_output: ${{parent.outputs.trained_model}}
-  
-  evaluate_model:
-    name: evaluate_model
-    display_name: evaluate-model
-    code: ../../../data-science/src
-    command: >-
-      python evaluate.py 
-      --model_name ${{inputs.model_name}} 
-      --model_input ${{inputs.model_input}} 
-      --test_data ${{inputs.test_data}} 
-      --evaluation_output ${{outputs.evaluation_output}}
-    environment: azureml:taxi-train-env@latest
-    inputs:
-      model_name: "taxi-model"
-      model_input: ${{parent.jobs.train_model.outputs.model_output}}
       test_data: ${{parent.jobs.prep_data.outputs.test_data}}
     outputs:
-      evaluation_output: ${{parent.outputs.evaluation_output}}
+      model_output:
+        type: mlflow_model
+    sampling_algorithm: random
+    trial: ./train.yml  # Refers to a separate command component
+    search_space:
+      criterion:
+        type: choice
+        values: ["gini", "entropy"]
+      max_depth:
+        type: choice
+        values: [1,3,5,10]
+    objective:
+      goal: maximize
+      primary_metric: Accuracy
+    limits:
+      max_total_trials: 20
+      max_concurrent_trials: 10
+      timeout: 7200
 
   register_model:
     name: register_model
@@ -89,13 +71,10 @@ jobs:
       python register.py 
       --model_name ${{inputs.model_name}} 
       --model_path ${{inputs.model_path}} 
-      --evaluation_output ${{inputs.evaluation_output}}
       --model_info_output_path ${{outputs.model_info_output_path}}
-    environment: azureml:taxi-train-env@latest
+    environment: azureml:teleco-churn-train-env@latest
     inputs:
-      model_name: "taxi-model"
-      model_path: ${{parent.jobs.train_model.outputs.model_output}}
-      evaluation_output: ${{parent.jobs.evaluate_model.outputs.evaluation_output}}
+      model_name: "teleco_churn_prediction_model"
+      model_path: ${{parent.jobs.sweep_step.outputs.model_output}}
     outputs:
       model_info_output_path: ${{parent.outputs.model_info_output_path}}
-# </jobs>
